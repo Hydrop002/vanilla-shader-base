@@ -5,12 +5,50 @@ uniform vec2 ScreenSize;
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 uniform float GameTime;
+uniform float FogStart;
+uniform float FogEnd;
+uniform vec4 FogColor;
 
 in vec4 vertexColor;
-in float marker;
+in float marker0;
+in float marker1;
+in float marker2;
+in float marker3;
 in vec3 pos;
 
 out vec4 fragColor;
+
+vec3 writeToColor0(uint ux, uint uy, uint uz) {
+    vec3 c;
+    c.r = float(bitfieldExtract(ux, 0, 8)) / 255.0;
+    c.g = float(bitfieldExtract(ux, 8, 8)) / 255.0;
+    c.b = float(bitfieldExtract(ux, 16, 8)) / 255.0;
+    return c;
+}
+
+vec3 writeToColor1(uint ux, uint uy, uint uz) {
+    vec3 c;
+    c.r = float(bitfieldExtract(ux, 24, 8)) / 255.0;
+    c.g = float(bitfieldExtract(uy, 0, 8)) / 255.0;
+    c.b = float(bitfieldExtract(uy, 8, 8)) / 255.0;
+    return c;
+}
+
+vec3 writeToColor2(uint ux, uint uy, uint uz) {
+    vec3 c;
+    c.r = float(bitfieldExtract(uy, 16, 8)) / 255.0;
+    c.g = float(bitfieldExtract(uy, 24, 8)) / 255.0;
+    c.b = float(bitfieldExtract(uz, 0, 8)) / 255.0;
+    return c;
+}
+
+vec3 writeToColor3(uint ux, uint uy, uint uz) {
+    vec3 c;
+    c.r = float(bitfieldExtract(uz, 8, 8)) / 255.0;
+    c.g = float(bitfieldExtract(uz, 16, 8)) / 255.0;
+    c.b = float(bitfieldExtract(uz, 24, 8)) / 255.0;
+    return c;
+}
 
 void main() {
     vec4 color = vertexColor;
@@ -33,36 +71,40 @@ void main() {
     vec2 rotYUV2 = vec2(baseUV.x + 2.0, baseUV.y + 1.0);
     vec2 rotYUV3 = vec2(baseUV.x + 2.0, baseUV.y + 2.0);
     vec2 rotYUV4 = vec2(baseUV.x + 2.0, baseUV.y + 3.0);
-    vec2 miscUV1 = vec2(baseUV.x + 3.0, baseUV.y);
-    vec2 miscUV2 = vec2(baseUV.x + 3.0, baseUV.y + 1.0);
-    vec2 miscUV3 = vec2(baseUV.x + 3.0, baseUV.y + 2.0);
-    vec2 miscUV4 = vec2(baseUV.x + 3.0, baseUV.y + 3.0);
+    vec2 fovYUV1 = vec2(baseUV.x + 3.0, baseUV.y);
+    vec2 fovYUV2 = vec2(baseUV.x + 3.0, baseUV.y + 1.0);
+    vec2 extraUV1 = vec2(baseUV.x + 4.0, baseUV.y);
+    vec2 extraUV2 = vec2(baseUV.x + 4.0, baseUV.y + 1.0);
+    vec2 extraUV3 = vec2(baseUV.x + 4.0, baseUV.y + 2.0);
+    vec2 extraUV4 = vec2(baseUV.x + 4.0, baseUV.y + 3.0);
+    vec2 fogUV1 = vec2(baseUV.x + 5.0, baseUV.y);
+    vec2 fogUV2 = vec2(baseUV.x + 5.0, baseUV.y + 1.0);
+    vec2 fogUV3 = vec2(baseUV.x + 5.0, baseUV.y + 2.0);
+    vec2 fogUV4 = vec2(baseUV.x + 5.0, baseUV.y + 3.0);
+    vec2 chunkPosUV1 = vec2(baseUV.x + 6.0, baseUV.y);
+    vec2 chunkPosUV2 = vec2(baseUV.x + 6.0, baseUV.y + 1.0);
+    vec2 chunkPosUV3 = vec2(baseUV.x + 6.0, baseUV.y + 2.0);
+    vec2 extraUV5 = vec2(baseUV.x + 7.0, baseUV.y);
+    vec2 extraUV6 = vec2(baseUV.x + 7.0, baseUV.y + 1.0);
+    vec2 extraUV7 = vec2(baseUV.x + 7.0, baseUV.y + 2.0);
+    bool marker = marker0 > 0.5 || marker1 > 0.5 || marker2 > 0.5 || marker3 > 0.5;
     if (uv.x == posUV1.x) {
-        uint ux = floatBitsToUint(mod(pos.x, 128.0));
-        uint uy = floatBitsToUint(mod(pos.y, 128.0));
-        uint uz = floatBitsToUint(mod(pos.z, 128.0));
-        vec3 c;
-        if (uv.y == posUV1.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 0, 8)) / 255.0;
-            c.g = float(bitfieldExtract(ux, 8, 8)) / 255.0;
-            c.b = float(bitfieldExtract(ux, 16, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == posUV2.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 24, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 0, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uy, 8, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == posUV3.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uy, 16, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 24, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 0, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == posUV4.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uz, 8, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uz, 16, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 24, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else {
+        uint ux = floatBitsToUint(-pos.x);
+        uint uy = floatBitsToUint(-pos.y);
+        uint uz = floatBitsToUint(-pos.z);
+        if (uv.y == posUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == posUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == posUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == posUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
+            else discard;
+        } else if (marker) {
             discard;
         }
     } else if (uv.x == rotZUV1.x) {
@@ -70,28 +112,19 @@ void main() {
         uint ux = floatBitsToUint(viewZ.x);
         uint uy = floatBitsToUint(viewZ.y);
         uint uz = floatBitsToUint(viewZ.z);
-        vec3 c;
-        if (uv.y == rotZUV1.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 0, 8)) / 255.0;
-            c.g = float(bitfieldExtract(ux, 8, 8)) / 255.0;
-            c.b = float(bitfieldExtract(ux, 16, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotZUV2.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 24, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 0, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uy, 8, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotZUV3.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uy, 16, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 24, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 0, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotZUV4.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uz, 8, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uz, 16, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 24, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else {
+        if (uv.y == rotZUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotZUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotZUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotZUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
+            else discard;
+        } else if (marker) {
             discard;
         }
     } else if (uv.x == rotYUV1.x) {
@@ -99,62 +132,92 @@ void main() {
         uint ux = floatBitsToUint(viewY.x);
         uint uy = floatBitsToUint(viewY.y);
         uint uz = floatBitsToUint(viewY.z);
-        vec3 c;
-        if (uv.y == rotYUV1.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 0, 8)) / 255.0;
-            c.g = float(bitfieldExtract(ux, 8, 8)) / 255.0;
-            c.b = float(bitfieldExtract(ux, 16, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotYUV2.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 24, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 0, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uy, 8, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotYUV3.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uy, 16, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 24, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 0, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == rotYUV4.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uz, 8, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uz, 16, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 24, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else {
+        if (uv.y == rotYUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotYUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotYUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == rotYUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
+            else discard;
+        } else if (marker) {
             discard;
         }
-    } else if (uv.x == miscUV1.x) {
+    } else if (uv.x == fovYUV1.x) {
         float cot = ProjMat[1][1];
-        float gametime = GameTime * 1200.0;
-        float daytime = dot(round(vertexColor.rgb * 255.0), vec3(65536.0, 256.0, 1.0)) / 24000.0;
         uint ux = floatBitsToUint(cot);
-        uint uy = floatBitsToUint(gametime);
-        uint uz = floatBitsToUint(daytime);
-        vec3 c;
-        if (uv.y == miscUV1.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 0, 8)) / 255.0;
-            c.g = float(bitfieldExtract(ux, 8, 8)) / 255.0;
-            c.b = float(bitfieldExtract(ux, 16, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == miscUV2.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(ux, 24, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 0, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uy, 8, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == miscUV3.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uy, 16, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uy, 24, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 0, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else if (uv.y == miscUV4.y && marker > 0.5) {
-            c.r = float(bitfieldExtract(uz, 8, 8)) / 255.0;
-            c.g = float(bitfieldExtract(uz, 16, 8)) / 255.0;
-            c.b = float(bitfieldExtract(uz, 24, 8)) / 255.0;
-            fragColor = vec4(c, 1.0);
-        } else {
+        if (uv.y == fovYUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, 0, 0), 1.0);
+            else discard;
+        } else if (uv.y == fovYUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, 0, 0), 1.0);
+            else discard;
+        } else if (marker) {
             discard;
         }
-    } else {
+    } else if (uv.x == extraUV1.x) {
+        uint ux = floatBitsToUint(GameTime * 1200.0);
+        uint uy = floatBitsToUint(FogStart);
+        uint uz = floatBitsToUint(FogEnd);
+        if (uv.y == extraUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == extraUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == extraUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == extraUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
+            else discard;
+        } else if (marker) {
+            discard;
+        }
+    } else if (uv.x == fogUV1.x) {
+        uint ux = floatBitsToUint(FogColor.x);
+        uint uy = floatBitsToUint(FogColor.y);
+        uint uz = floatBitsToUint(FogColor.z);
+        if (uv.y == fogUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == fogUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == fogUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == fogUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
+            else discard;
+        } else if (marker) {
+            discard;
+        }
+    } else if (uv.x == chunkPosUV1.x) {
+        if (uv.y == chunkPosUV1.y) {
+            if (marker1 > 0.5) fragColor = vertexColor;
+            else discard;
+        } else if (uv.y == chunkPosUV2.y) {
+            if (marker2 > 0.5) fragColor = vertexColor;
+            else discard;
+        } else if (uv.y == chunkPosUV3.y) {
+            if (marker3 > 0.5) fragColor = vertexColor;
+            else discard;
+        } else if (marker) {
+            discard;
+        }
+    } else if (uv.x == extraUV5.x) {
+        if (uv.y == extraUV5.y) {  // daytime
+            if (marker0 > 0.5) fragColor = vertexColor;
+            else discard;
+        } else if (marker) {
+            discard;
+        }
+    } else if (marker) {
         discard;
     }
 }

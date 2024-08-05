@@ -1,28 +1,25 @@
-# scoreboard players add global timer 1
+execute store result score global count if entity @e[tag=daytime]
+execute unless score global count matches 1 run kill @e[tag=daytime]
+execute store result score global count if entity @e[tag=chunkpos_x]
+execute unless score global count matches 1 run kill @e[tag=chunkpos_x]
+execute store result score global count if entity @e[tag=chunkpos_y]
+execute unless score global count matches 1 run kill @e[tag=chunkpos_y]
+execute store result score global count if entity @e[tag=chunkpos_z]
+execute unless score global count matches 1 run kill @e[tag=chunkpos_z]
+# execute store result score global count if entity @e[tag=dimension]
+# execute unless score global count matches 1 run kill @e[tag=dimension]
+# execute store result score global count if entity @e[tag=biome]
+# execute unless score global count matches 1 run kill @e[tag=biome]
+execute unless entity @e[tag=daytime] at @p run summon minecraft:text_display ~ ~ ~ {text:"daytime",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[daytime]}
+execute unless entity @e[tag=chunkpos_x] at @p run summon minecraft:text_display ~ ~ ~ {text:"chunkpos_x",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[chunkpos_x]}
+execute unless entity @e[tag=chunkpos_y] at @p run summon minecraft:text_display ~ ~ ~ {text:"chunkpos_y",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[chunkpos_y]}
+execute unless entity @e[tag=chunkpos_z] at @p run summon minecraft:text_display ~ ~ ~ {text:"chunkpos_z",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[chunkpos_z]}
+# execute unless entity @e[tag=dimension] at @p run summon minecraft:text_display ~ ~ ~ {text:"dimension",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[dimension]}
+# execute unless entity @e[tag=biome] at @p run summon minecraft:text_display ~ ~ ~ {text:"biome",see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[biome]}
 
-execute store result score global count if entity @e[tag=uniform,tag=p1]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p1]
-execute store result score global count if entity @e[tag=uniform,tag=p2]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p2]
-execute store result score global count if entity @e[tag=uniform,tag=p3]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p3]
-execute store result score global count if entity @e[tag=uniform,tag=p4]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p4]
-execute store result score global count if entity @e[tag=uniform,tag=p5]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p5]
-execute store result score global count if entity @e[tag=uniform,tag=p6]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p6]
-execute store result score global count if entity @e[tag=uniform,tag=p7]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p7]
-execute store result score global count if entity @e[tag=uniform,tag=p8]
-execute unless score global count matches 1 run kill @e[tag=uniform,tag=p8]
-execute unless entity @e[tag=uniform,tag=p1] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p1]}
-execute unless entity @e[tag=uniform,tag=p2] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p2]}
-execute unless entity @e[tag=uniform,tag=p3] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p3]}
-execute unless entity @e[tag=uniform,tag=p4] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p4]}
-execute unless entity @e[tag=uniform,tag=p5] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p5]}
-execute unless entity @e[tag=uniform,tag=p6] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p6]}
-execute unless entity @e[tag=uniform,tag=p7] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p7]}
-execute unless entity @e[tag=uniform,tag=p8] at @p run summon minecraft:text_display ~ ~ ~ {view_range:999999.0f,see_through:true,billboard:center,transformation:[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0],Tags:[uniform,p8]}
-
-execute as @e[tag=uniform] at @s run function vsb:uniform
+execute as @e[tag=daytime] run function vsb:daytime
+execute as @e[tag=chunkpos_x] run function vsb:chunkpos_x
+execute as @e[tag=chunkpos_y] run function vsb:chunkpos_y
+execute as @e[tag=chunkpos_z] run function vsb:chunkpos_z
+# execute as @e[tag=dimension] run function vsb:dimension
+# execute as @e[tag=biome] run function vsb:biome

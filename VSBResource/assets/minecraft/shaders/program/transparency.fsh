@@ -25,6 +25,8 @@ vec4 color_layers[NUM_LAYERS];
 float depth_layers[NUM_LAYERS];
 int active_layers = 0;
 
+const float n = 0.05;
+const float f = 768.0;
 mat4 proj;
 mat4 projInv;
 mat3 view;
@@ -84,8 +86,6 @@ vec3 get_texel_accum(vec2 uv, inout float depthAccum) {
 
 float depth2dist(float depth) {
     float depth_ndc = depth * 2.0 - 1.0;
-    float n = 0.05;
-    float f = 768.0;
     return 2.0 * f * n / (f + n - (f - n) * depth_ndc);
 }
 
@@ -182,6 +182,33 @@ void rotate_water_normal(inout vec3 waterNormal, vec3 normal) {
     waterNormal.z = t.z * q.w - t.w * q.z - t.x * q.y + t.y * q.x;
 }
 
+uint readFromColor0(uvec3 u1, uvec3 u2, uvec3 u3, uvec3 u4) {
+    uint ux;
+    ux = bitfieldInsert(ux, u1.r, 0, 8);
+    ux = bitfieldInsert(ux, u1.g, 8, 8);
+    ux = bitfieldInsert(ux, u1.b, 16, 8);
+    ux = bitfieldInsert(ux, u2.r, 24, 8);
+    return ux;
+}
+
+uint readFromColor1(uvec3 u1, uvec3 u2, uvec3 u3, uvec3 u4) {
+    uint uy;
+    uy = bitfieldInsert(uy, u2.g, 0, 8);
+    uy = bitfieldInsert(uy, u2.b, 8, 8);
+    uy = bitfieldInsert(uy, u3.r, 16, 8);
+    uy = bitfieldInsert(uy, u3.g, 24, 8);
+    return uy;
+}
+
+uint readFromColor2(uvec3 u1, uvec3 u2, uvec3 u3, uvec3 u4) {
+    uint uz;
+    uz = bitfieldInsert(uz, u3.b, 0, 8);
+    uz = bitfieldInsert(uz, u4.r, 8, 8);
+    uz = bitfieldInsert(uz, u4.g, 16, 8);
+    uz = bitfieldInsert(uz, u4.b, 24, 8);
+    return uz;
+}
+
 void main() {
     float depthAccum;
     vec3 texelAccum = get_texel_accum(texCoord, depthAccum);
@@ -205,98 +232,75 @@ void main() {
     ivec2 rotYUV2 = ivec2(baseUV.x + 2, baseUV.y + 1);
     ivec2 rotYUV3 = ivec2(baseUV.x + 2, baseUV.y + 2);
     ivec2 rotYUV4 = ivec2(baseUV.x + 2, baseUV.y + 3);
-    ivec2 miscUV1 = ivec2(baseUV.x + 3, baseUV.y);
-    ivec2 miscUV2 = ivec2(baseUV.x + 3, baseUV.y + 1);
-    ivec2 miscUV3 = ivec2(baseUV.x + 3, baseUV.y + 2);
-    ivec2 miscUV4 = ivec2(baseUV.x + 3, baseUV.y + 3);
+    ivec2 fovYUV1 = ivec2(baseUV.x + 3, baseUV.y);
+    ivec2 fovYUV2 = ivec2(baseUV.x + 3, baseUV.y + 1);
+    ivec2 extraUV1 = ivec2(baseUV.x + 4, baseUV.y);
+    ivec2 extraUV2 = ivec2(baseUV.x + 4, baseUV.y + 1);
+    ivec2 extraUV3 = ivec2(baseUV.x + 4, baseUV.y + 2);
+    ivec2 extraUV4 = ivec2(baseUV.x + 4, baseUV.y + 3);
+    ivec2 fogUV1 = ivec2(baseUV.x + 5, baseUV.y);
+    ivec2 fogUV2 = ivec2(baseUV.x + 5, baseUV.y + 1);
+    ivec2 fogUV3 = ivec2(baseUV.x + 5, baseUV.y + 2);
+    ivec2 fogUV4 = ivec2(baseUV.x + 5, baseUV.y + 3);
+    ivec2 chunkPosUV1 = ivec2(baseUV.x + 6, baseUV.y);
+    ivec2 chunkPosUV2 = ivec2(baseUV.x + 6, baseUV.y + 1);
+    ivec2 chunkPosUV3 = ivec2(baseUV.x + 6, baseUV.y + 2);
+    ivec2 extraUV5 = ivec2(baseUV.x + 7, baseUV.y);
+    ivec2 extraUV6 = ivec2(baseUV.x + 7, baseUV.y + 1);
+    ivec2 extraUV7 = ivec2(baseUV.x + 7, baseUV.y + 2);
 
     uvec3 u1, u2, u3, u4;
-    uint ux, uy, uz;
 
-    vec3 pos;  // [0,128]
+    vec3 pos;
     u1 = uvec3(texelFetch(DiffuseSampler, posUV1, 0).rgb * 255.0);
     u2 = uvec3(texelFetch(DiffuseSampler, posUV2, 0).rgb * 255.0);
     u3 = uvec3(texelFetch(DiffuseSampler, posUV3, 0).rgb * 255.0);
     u4 = uvec3(texelFetch(DiffuseSampler, posUV4, 0).rgb * 255.0);
-    ux = bitfieldInsert(ux, u1.r, 0, 8);
-    ux = bitfieldInsert(ux, u1.g, 8, 8);
-    ux = bitfieldInsert(ux, u1.b, 16, 8);
-    ux = bitfieldInsert(ux, u2.r, 24, 8);
-    pos.x = uintBitsToFloat(ux);
-    uy = bitfieldInsert(uy, u2.g, 0, 8);
-    uy = bitfieldInsert(uy, u2.b, 8, 8);
-    uy = bitfieldInsert(uy, u3.r, 16, 8);
-    uy = bitfieldInsert(uy, u3.g, 24, 8);
-    pos.y = uintBitsToFloat(uy);
-    uz = bitfieldInsert(uz, u3.b, 0, 8);
-    uz = bitfieldInsert(uz, u4.r, 8, 8);
-    uz = bitfieldInsert(uz, u4.g, 16, 8);
-    uz = bitfieldInsert(uz, u4.b, 24, 8);
-    pos.z = uintBitsToFloat(uz);
+    pos.x = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    pos.y = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    pos.z = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
+    float chunkPosX = dot(round(texelFetch(DiffuseSampler, chunkPosUV1, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) - 8388608.0;
+    float chunkPosY = dot(round(texelFetch(DiffuseSampler, chunkPosUV2, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) - 8388608.0;
+    float chunkPosZ = dot(round(texelFetch(DiffuseSampler, chunkPosUV3, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) - 8388608.0;
+    pos += vec3(chunkPosX, chunkPosY, chunkPosZ) * 16.0;
     vec3 viewZ;
     u1 = uvec3(texelFetch(DiffuseSampler, rotZUV1, 0).rgb * 255.0);
     u2 = uvec3(texelFetch(DiffuseSampler, rotZUV2, 0).rgb * 255.0);
     u3 = uvec3(texelFetch(DiffuseSampler, rotZUV3, 0).rgb * 255.0);
     u4 = uvec3(texelFetch(DiffuseSampler, rotZUV4, 0).rgb * 255.0);
-    ux = bitfieldInsert(ux, u1.r, 0, 8);
-    ux = bitfieldInsert(ux, u1.g, 8, 8);
-    ux = bitfieldInsert(ux, u1.b, 16, 8);
-    ux = bitfieldInsert(ux, u2.r, 24, 8);
-    viewZ.x = uintBitsToFloat(ux);
-    uy = bitfieldInsert(uy, u2.g, 0, 8);
-    uy = bitfieldInsert(uy, u2.b, 8, 8);
-    uy = bitfieldInsert(uy, u3.r, 16, 8);
-    uy = bitfieldInsert(uy, u3.g, 24, 8);
-    viewZ.y = uintBitsToFloat(uy);
-    uz = bitfieldInsert(uz, u3.b, 0, 8);
-    uz = bitfieldInsert(uz, u4.r, 8, 8);
-    uz = bitfieldInsert(uz, u4.g, 16, 8);
-    uz = bitfieldInsert(uz, u4.b, 24, 8);
-    viewZ.z = uintBitsToFloat(uz);
+    viewZ.x = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    viewZ.y = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    viewZ.z = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     vec3 viewY;
     u1 = uvec3(texelFetch(DiffuseSampler, rotYUV1, 0).rgb * 255.0);
     u2 = uvec3(texelFetch(DiffuseSampler, rotYUV2, 0).rgb * 255.0);
     u3 = uvec3(texelFetch(DiffuseSampler, rotYUV3, 0).rgb * 255.0);
     u4 = uvec3(texelFetch(DiffuseSampler, rotYUV4, 0).rgb * 255.0);
-    ux = bitfieldInsert(ux, u1.r, 0, 8);
-    ux = bitfieldInsert(ux, u1.g, 8, 8);
-    ux = bitfieldInsert(ux, u1.b, 16, 8);
-    ux = bitfieldInsert(ux, u2.r, 24, 8);
-    viewY.x = uintBitsToFloat(ux);
-    uy = bitfieldInsert(uy, u2.g, 0, 8);
-    uy = bitfieldInsert(uy, u2.b, 8, 8);
-    uy = bitfieldInsert(uy, u3.r, 16, 8);
-    uy = bitfieldInsert(uy, u3.g, 24, 8);
-    viewY.y = uintBitsToFloat(uy);
-    uz = bitfieldInsert(uz, u3.b, 0, 8);
-    uz = bitfieldInsert(uz, u4.r, 8, 8);
-    uz = bitfieldInsert(uz, u4.g, 16, 8);
-    uz = bitfieldInsert(uz, u4.b, 24, 8);
-    viewY.z = uintBitsToFloat(uz);
+    viewY.x = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    viewY.y = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    viewY.z = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     vec3 viewX = cross(viewY, viewZ);
-    u1 = uvec3(texelFetch(DiffuseSampler, miscUV1, 0).rgb * 255.0);
-    u2 = uvec3(texelFetch(DiffuseSampler, miscUV2, 0).rgb * 255.0);
-    u3 = uvec3(texelFetch(DiffuseSampler, miscUV3, 0).rgb * 255.0);
-    u4 = uvec3(texelFetch(DiffuseSampler, miscUV4, 0).rgb * 255.0);
-    ux = bitfieldInsert(ux, u1.r, 0, 8);
-    ux = bitfieldInsert(ux, u1.g, 8, 8);
-    ux = bitfieldInsert(ux, u1.b, 16, 8);
-    ux = bitfieldInsert(ux, u2.r, 24, 8);
-    float cot = uintBitsToFloat(ux);
-    uy = bitfieldInsert(uy, u2.g, 0, 8);
-    uy = bitfieldInsert(uy, u2.b, 8, 8);
-    uy = bitfieldInsert(uy, u3.r, 16, 8);
-    uy = bitfieldInsert(uy, u3.g, 24, 8);
-    float gametime = uintBitsToFloat(uy);  // [0,1200]s
-    uz = bitfieldInsert(uz, u3.b, 0, 8);
-    uz = bitfieldInsert(uz, u4.r, 8, 8);
-    uz = bitfieldInsert(uz, u4.g, 16, 8);
-    uz = bitfieldInsert(uz, u4.b, 24, 8);
-    float daytime = uintBitsToFloat(uz);  // [0,1]d
+    u1 = uvec3(texelFetch(DiffuseSampler, fovYUV1, 0).rgb * 255.0);
+    u2 = uvec3(texelFetch(DiffuseSampler, fovYUV2, 0).rgb * 255.0);
+    float cot = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    u1 = uvec3(texelFetch(DiffuseSampler, extraUV1, 0).rgb * 255.0);
+    u2 = uvec3(texelFetch(DiffuseSampler, extraUV2, 0).rgb * 255.0);
+    u3 = uvec3(texelFetch(DiffuseSampler, extraUV3, 0).rgb * 255.0);
+    u4 = uvec3(texelFetch(DiffuseSampler, extraUV4, 0).rgb * 255.0);
+    float gametime = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));  // [0,1200]s
+    float fogStart = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    float fogEnd = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
+    vec3 fogColor;
+    u1 = uvec3(texelFetch(DiffuseSampler, fogUV1, 0).rgb * 255.0);
+    u2 = uvec3(texelFetch(DiffuseSampler, fogUV2, 0).rgb * 255.0);
+    u3 = uvec3(texelFetch(DiffuseSampler, fogUV3, 0).rgb * 255.0);
+    u4 = uvec3(texelFetch(DiffuseSampler, fogUV4, 0).rgb * 255.0);
+    fogColor.r = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    fogColor.g = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    fogColor.b = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
+    float daytime = dot(round(texelFetch(DiffuseSampler, extraUV5, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) / 24000.0;  // [0,1]d
 
     float aspect = OutSize.x / OutSize.y;
-    float n = 0.05;
-    float f = 768.0;
     proj = mat4(cot / aspect, 0.0, 0.0, 0.0,
                 0.0, cot, 0.0, 0.0,
                 0.0, 0.0, -(f + n) / (f - n), -1.0,
@@ -310,7 +314,7 @@ void main() {
 
     if (isWater) {
         vec3 normal = normalize(cross(dFdx(worldPos), dFdy(worldPos)));
-        vec3 waterNormal = get_water_normal(worldPos - pos, gametime);
+        vec3 waterNormal = get_water_normal(pos + worldPos, gametime);
         rotate_water_normal(waterNormal, normal);
         vec3 screenPos = raytrace(worldPos, waterNormal);
         float refDepth;

@@ -7,7 +7,10 @@ uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 
 out vec4 vertexColor;
-out float marker;
+out float marker0;
+out float marker1;
+out float marker2;
+out float marker3;
 out vec3 pos;
 
 void main() {
@@ -16,8 +19,11 @@ void main() {
     vertexColor = Color;
 
     float alpha = round(vertexColor.a * 255.0);
-    marker = float(alpha == 0.0);
-    if (marker > 0.5) {
+    marker0 = float(alpha == 0.0);
+    marker1 = float(alpha == 1.0);
+    marker2 = float(alpha == 2.0);
+    marker3 = float(alpha == 3.0);
+    if (marker0 > 0.5 || marker1 > 0.5 || marker2 > 0.5 || marker3 > 0.5) {
         vertexColor.a = 1.0;
         pos = Position;
         if (gl_VertexID == 0) {
