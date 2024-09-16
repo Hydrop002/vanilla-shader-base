@@ -27,6 +27,8 @@ int active_layers = 0;
 
 #define CLOUD_HEIGHT 192.0
 #define CLOUD_THICKNESS 128.0
+#define SUN_COLOR vec3(1.0)
+#define MOON_COLOR vec3(0.75, 0.83, 1.0)
 
 const float pi = 3.1416;
 const mat3 srgb_to_xyz = mat3(
@@ -56,6 +58,7 @@ mat3 viewInv;
 float sunAngle;
 vec3 sunVec;
 vec3 lightVec;
+vec3 cameraPos;
 float gametime;
 float rainStrength;
 
@@ -321,7 +324,7 @@ float get_cloud_density(vec3 pos) {  // [0,1]
     density *= smoothstep(0.0, 0.1, 1.0 - altitude_fraction);
     if (density < 1e-6) return 0.0;
 
-    vec3 wind = vec3(wind_velocity * gametime, 0.0).xzy;
+    vec3 wind = vec3(wind_velocity * gametime * 4.0, 0.0).xzy;
     float worley_0 = perlin3d((pos + 0.2 * wind) * 0.0256) * 0.5 + 0.5;
     float worley_1 = perlin3d((pos + 0.4 * wind) * 0.16) * 0.5 + 0.5;
     float detail_fade = 0.20 * smoothstep(0.85, 1.0, 1.0 - altitude_fraction)
@@ -333,7 +336,7 @@ float get_cloud_density(vec3 pos) {  // [0,1]
 
     density = max(density, 0.0);
     density = 1.0 - pow(max(1.0 - density, 0.0), 7.0);
-    return density;
+    return pow(density, 0.2);
 }
 
 float henyey_greenstein_phase(float cosTheta, float g) {
@@ -379,12 +382,20 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
     float extinction_coeff = 0.08;  // absorption + scattering
     float scattering_coeff = extinction_coeff * (1.0 - 0.33 * rainStrength);
     float vol = dot(dir, lightVec);
+    bool intersect = false;
+    float bottom_fade = 1.0;
+    float horizon_fade = 1.0;
     for (int i = 0; i < count; ++i) {
         if (transmittance < 0.075) break;
         vec3 rayPos = start + stp * (float(i) + rand2to1(gl_FragCoord.xy));
         float altitude_fraction = (rayPos.y - CLOUD_HEIGHT) / CLOUD_THICKNESS;
         float density = get_cloud_density(rayPos);
         if (density < 1e-6) continue;
+        else if (!intersect) {
+            intersect = true;
+            bottom_fade = clamp(altitude_fraction * 5.0, 0.0, 1.0);
+            horizon_fade = linear_step(5000.0, 1000.0, distance(rayPos.xz, cameraPos.xz));
+        }
         float step_optical_depth = density * stpLen;
 		float step_transmittance = exp(-step_optical_depth * extinction_coeff);
         vec2 rand = rand3to2(rayPos);
@@ -415,6 +426,12 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
         transmittance *= step_transmittance;
     }
     transmittance = linear_step(0.075, 1.0, transmittance);
+    transmittance = mix(1.0, transmittance, bottom_fade);
+    sunlight *= bottom_fade;
+    skylight *= bottom_fade;
+    transmittance = mix(1.0, transmittance, horizon_fade);
+    sunlight *= horizon_fade;
+    skylight *= horizon_fade;
     return vec3(sunlight, skylight, transmittance);
 }
 
@@ -487,7 +504,6 @@ void main() {
 
     uvec3 u1, u2, u3, u4;
 
-    vec3 cameraPos;
     u1 = uvec3(texelFetch(DiffuseSampler, posUV1, 0).rgb * 255.0);
     u2 = uvec3(texelFetch(DiffuseSampler, posUV2, 0).rgb * 255.0);
     u3 = uvec3(texelFetch(DiffuseSampler, posUV3, 0).rgb * 255.0);
@@ -585,7 +601,6 @@ void main() {
         fragColor.rgb = mix(texelAccum, refColor, fresnel);
     }
     vec3 scattering = vec3(0.0, 0.0, 1.0);
-    float horizon_fade = 1.0;
     if (cameraPos.y < CLOUD_HEIGHT) {
         float bottomDist = (CLOUD_HEIGHT - cameraPos.y) / worldDir.y;
         if (worldDir.y > 0.0 && worldDist > bottomDist) {
@@ -593,7 +608,6 @@ void main() {
             float topDist = (CLOUD_HEIGHT + CLOUD_THICKNESS - cameraPos.y) / worldDir.y;
             float rayLength = min(topDist, worldDist) - bottomDist;
             scattering = raymarch(rayStart, worldDir, rayLength);
-            horizon_fade = linear_step(0.0, 0.08, worldDir.y);
         }
     } else if (cameraPos.y > CLOUD_HEIGHT + CLOUD_THICKNESS) {
         float topDist = (cameraPos.y - CLOUD_HEIGHT - CLOUD_THICKNESS) / -worldDir.y;
@@ -602,24 +616,23 @@ void main() {
             float bottomDist = (cameraPos.y - CLOUD_HEIGHT) / -worldDir.y;
             float rayLength = min(bottomDist, worldDist) - topDist;
             scattering = raymarch(rayStart, worldDir, rayLength);
-            horizon_fade = linear_step(0.0, 0.08, -worldDir.y);
         }
     } else {
         if (worldDir.y > 0.0) {
             float dist = (CLOUD_HEIGHT + CLOUD_THICKNESS - cameraPos.y) / worldDir.y;
             float rayLength = min(dist, worldDist);
             scattering = raymarch(cameraPos, worldDir, rayLength);
-            horizon_fade = mix(linear_step(0.0, 0.08, worldDir.y), 1.0, smoothstep(0.0, 0.1 * CLOUD_THICKNESS, cameraPos.y - CLOUD_HEIGHT));
         } else {
             float dist = (cameraPos.y - CLOUD_HEIGHT) / -worldDir.y;
             float rayLength = min(dist, worldDist);
             scattering = raymarch(cameraPos, worldDir, rayLength);
-            horizon_fade = mix(linear_step(0.0, 0.08, -worldDir.y), 1.0, smoothstep(CLOUD_THICKNESS, 0.8 * CLOUD_THICKNESS, cameraPos.y - CLOUD_HEIGHT));
         }
     }
-    vec3 lightColor = sunAngle < 0.5 ? mix(vec3(2.0), gamma_to_linear(sunriseColor.rgb), sunriseColor.a) : vec3(0.75, 0.83, 1.0);
-    vec3 cloudColor = scattering.x * lightColor + scattering.y * gamma_to_linear(skyColor);
-    cloudColor += gamma_to_linear(fragColor.rgb) * scattering.z;
-    cloudColor = linear_to_gamma(cloudColor);
-    fragColor.rgb = mix(fragColor.rgb, cloudColor, horizon_fade);
+    float sunIntensity = clamp(sunVec.y * 10.0, 0.0, 1.0);
+    float moonIntensity = clamp(-sunVec.y * 10.0, 0.0, 1.0);
+    vec3 lightColor = gamma_to_linear(sunAngle < 0.5 ? mix(SUN_COLOR, sunriseColor.rgb, sunriseColor.a) * sunIntensity : MOON_COLOR * moonIntensity);
+    vec3 cloudColor = scattering.x * lightColor + scattering.y * gamma_to_linear(mix(skyColor, sunriseColor.rgb, sunriseColor.a * 0.5));
+    fragColor.rgb = gamma_to_linear(fragColor.rgb);
+    fragColor.rgb = cloudColor + fragColor.rgb * scattering.z;
+    fragColor.rgb = linear_to_gamma(fragColor.rgb);
 }

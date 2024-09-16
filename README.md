@@ -23,3 +23,5 @@ Vertex color is passed directly.
 ## Gallery
 
 ![0](img/2024-06-16_18.56.13.png)
+
+![1](img/2024-09-17_02.02.49.png)
