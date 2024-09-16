@@ -393,7 +393,7 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
         if (density < 1e-6) continue;
         else if (!intersect) {
             intersect = true;
-            bottom_fade = clamp(altitude_fraction * 5.0, 0.0, 1.0);
+            bottom_fade = mix(clamp(altitude_fraction * 5.0, 0.0, 1.0), 1.0, max(max(1.0 - abs(sunVec.y) * 10.0, vol), 0.0));
             horizon_fade = linear_step(5000.0, 1000.0, distance(rayPos.xz, cameraPos.xz));
         }
         float step_optical_depth = density * stpLen;
