@@ -385,7 +385,7 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
         if (density < 1e-6) continue;
         else if (!intersect) {
             intersect = true;
-            bottom_fade = mix(clamp(altitude_fraction * 5.0, 0.0, 1.0), 1.0, max(max(max(1.0 - abs(sunVec.y) * 10.0, vol), rainStrength), 0.0));
+            bottom_fade = mix(clamp(altitude_fraction * 5.0, 0.0, 1.0), 1.0, max(max(max(1.0 - abs(sunVec.y) * 5.0, vol), rainStrength), 0.0));
             horizon_fade = linear_step(5000.0, 1000.0, distance(rayPos.xz, cameraPos.xz));
         }
         float step_optical_depth = density * stpLen;
@@ -558,6 +558,12 @@ void main() {
     fogColor.g = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
     fogColor.b = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     rainStrength = 0.0;  // todo sun alpha
+    /* todo command(gt)
+    data modify entity @s effect set from entity @p active_effects[$(i)]
+    execute if entity @s[nbt={effect:{id:"minecraft:night_vision"}}] store result storage ... run data get entity @s effect.duration
+    data modify entity @s background set from storage ...
+    */
+    float nightVision = 1.0;
     float daytime = dot(round(texelFetch(DiffuseSampler, extraUV5, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) / 24000.0;  // [0,1]d
     sunAngle = get_sun_angle(daytime);  // [0,1]
     sunVec = vec3(cos(sunAngle * 2.0 * pi), sin(sunAngle * 2.0 * pi), 0.0);  // eye->sun
@@ -626,7 +632,8 @@ void main() {
     float sunIntensity = clamp(sunVec.y * 10.0, 0.0, 1.0);
     float moonIntensity = clamp(-sunVec.y * 10.0, 0.0, 1.0);
     vec3 lightColor = gamma_to_linear(sunAngle < 0.5 ? mix(SUN_COLOR, sunriseColor.rgb, sunriseColor.a) * sunIntensity : MOON_COLOR * moonIntensity);
-    vec3 cloudColor = scattering.x * lightColor + scattering.y * gamma_to_linear(mix((skyColor + 1.0) / 2.0, sunriseColor.rgb, sunriseColor.a * 0.5));
+    vec3 ambientColor = gamma_to_linear(mix(mix(vec3(1.0), skyColor, moonIntensity * (1.0 - nightVision) * 0.5 + 0.5), sunriseColor.rgb, sunriseColor.a * 0.5));
+    vec3 cloudColor = scattering.x * lightColor + scattering.y * ambientColor;
     fragColor.rgb = gamma_to_linear(fragColor.rgb);
     fragColor.rgb = cloudColor + fragColor.rgb * scattering.z;
     fragColor.rgb = linear_to_gamma(fragColor.rgb);

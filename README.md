@@ -15,10 +15,13 @@ Vertex color is passed directly.
 
 1. chunkPos.xyz
 2. daytime(gt), dimension, biome
+3. nightVision
 
 ## Todo
 
 多人情况为每个玩家分配单独的alpha区间和像素区域。
+
+从太阳的alpha中提取下雨强度。
 
 ## Gallery
 
