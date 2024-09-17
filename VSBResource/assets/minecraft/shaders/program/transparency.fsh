@@ -317,8 +317,8 @@ float get_cloud_density(vec3 pos) {  // [0,1]
     pos.xz += wind_velocity * (gametime + 5.0 * pow(altitude_fraction, 2.0));
 
     float noise = perlin2d(0.00512 * pos.xz) * 0.5 + 0.5;
-    float amount = 1.0 - rainStrength;
-    float density = 1.2 * linear_step(0.2, 1.0, noise * noise) * linear_step(0.5, 0.75, amount);
+    noise += mix(0.0, 0.2, rainStrength);
+    float density = 1.2 * linear_step(0.2, 1.0, noise * noise);
     density -= pow(linear_step(0.2, 1.0, altitude_fraction), 1.5) * 0.6;
     density *= smoothstep(0.0, 0.1, altitude_fraction);
     density *= smoothstep(0.0, 0.1, 1.0 - altitude_fraction);
@@ -393,7 +393,7 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
         if (density < 1e-6) continue;
         else if (!intersect) {
             intersect = true;
-            bottom_fade = mix(clamp(altitude_fraction * 5.0, 0.0, 1.0), 1.0, max(max(1.0 - abs(sunVec.y) * 10.0, vol), 0.0));
+            bottom_fade = mix(clamp(altitude_fraction * 5.0, 0.0, 1.0), 1.0, max(max(max(1.0 - abs(sunVec.y) * 10.0, vol), rainStrength), 0.0));
             horizon_fade = linear_step(5000.0, 1000.0, distance(rayPos.xz, cameraPos.xz));
         }
         float step_optical_depth = density * stpLen;
