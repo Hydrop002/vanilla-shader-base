@@ -32,14 +32,14 @@ int active_layers = 0;
 
 const float pi = 3.1416;
 const mat3 srgb_to_xyz = mat3(
-	0.4124, 0.2126, 0.0193,
-	0.3576, 0.7152, 0.1192,
-	0.1805, 0.0722, 0.9505
+    0.4124, 0.2126, 0.0193,
+    0.3576, 0.7152, 0.1192,
+    0.1805, 0.0722, 0.9505
 );
 const mat3 xyz_to_srgb = mat3(
-	3.2406, -0.9689, 0.0557,
-	-1.5372, 1.8758, -0.2040,
-	-0.4986, 0.0415, 1.0570
+    3.2406, -0.9689, 0.0557,
+    -1.5372, 1.8758, -0.2040,
+    -0.4986, 0.0415, 1.0570
 );
 const vec3 luminance = vec3(srgb_to_xyz[0][1], srgb_to_xyz[1][1], srgb_to_xyz[2][1]);
 const vec3 luminance_gamma = vec3(0.299, 0.587, 0.114);
@@ -162,7 +162,7 @@ vec4 get_sunrise_color(float sunHeight) {
 }
 
 float rand2to1(vec2 pos) {  // [0,1]
-	vec3 rand = fract(pos.xyx * 0.1031);
+    vec3 rand = fract(pos.xyx * 0.1031);
     rand += dot(rand, rand.yzx + 33.33);
     return fract((rand.x + rand.y) * rand.z);
 }
@@ -174,7 +174,7 @@ vec2 rand2to2(vec2 pos) {  // [0,1]
 }
 
 vec2 rand3to2(vec3 pos) {  // [0,1]
-	pos = fract(pos * vec3(0.1031, 0.1030, 0.0973));
+    pos = fract(pos * vec3(0.1031, 0.1030, 0.0973));
     pos += dot(pos, pos.yzx + 33.33);
     return fract((pos.xx + pos.yz) * pos.zy);
 }
@@ -336,40 +336,34 @@ float get_cloud_density(vec3 pos) {  // [0,1]
 
     density = max(density, 0.0);
     density = 1.0 - pow(max(1.0 - density, 0.0), 7.0);
-    return pow(density, 0.2);
+    return density;
 }
 
 float henyey_greenstein_phase(float cosTheta, float g) {
-	float gg = g * g;
-	return 0.25 / pi * (1.0 - gg) / pow(1.0 + gg - 2.0 * g * cosTheta, 1.5);
+    float gg = g * g;
+    return 0.25 / pi * (1.0 - gg) / pow(1.0 + gg - 2.0 * g * cosTheta, 1.5);
+}
+
+float cornette_shanks_phase(float cosTheta, float g) {
+    float gg = g * g;
+    return 0.375 / pi * (1.0 - gg) / (2.0 + gg) * (1.0 + cosTheta * cosTheta) / pow(1.0 + gg - 2.0 * g * cosTheta, 1.5);
 }
 
 float klein_nishina_phase(float cosTheta, float e) {
-	return e / (2.0 * pi * (e - e * cosTheta + 1.0) * log(2.0 * e + 1.0));
-}
-
-float single_scattering_phase(float cosTheta) {
-    return 0.8 * klein_nishina_phase(cosTheta, 2600.0)
-	     + 0.2 * henyey_greenstein_phase(cosTheta, -0.2);
-}
-
-float multi_scattering_phase(float cosTheta, vec3 g) {
-    return 0.65 * henyey_greenstein_phase(cosTheta, g.x)
-	     + 0.10 * henyey_greenstein_phase(cosTheta, g.y)
-	     + 0.25 * henyey_greenstein_phase(cosTheta, -g.z);
+    return e / (2.0 * pi * (e - e * cosTheta + 1.0) * log(2.0 * e + 1.0));
 }
 
 float raymarch_light(vec3 start, vec3 dir, float dither, int count) {
-	float stpLen = 0.1 * CLOUD_THICKNESS / float(count);
-	vec3 rayPos = start;
-	vec3 stp = dir * stpLen;
-	float optical_depth = 0.0;
-	for (int i = 0; i < count; ++i, rayPos += stp) {
+    float stpLen = 0.1 * CLOUD_THICKNESS / float(count);
+    vec3 rayPos = start;
+    vec3 stp = dir * stpLen;
+    float optical_depth = 0.0;
+    for (int i = 0; i < count; ++i, rayPos += stp) {
         stpLen *= 2.0;
-		stp *= 2.0;
-		optical_depth += get_cloud_density(rayPos + stp * dither) * stpLen;
-	}
-	return optical_depth;
+        stp *= 2.0;
+        optical_depth += get_cloud_density(rayPos + stp * dither) * stpLen;
+    }
+    return optical_depth;
 }
 
 vec3 raymarch(vec3 start, vec3 dir, float len) {
@@ -379,8 +373,6 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
     float sunlight = 0.0;
     float skylight = 0.0;
     float transmittance = 1.0;
-    float extinction_coeff = 0.08;  // absorption + scattering
-    float scattering_coeff = extinction_coeff * (1.0 - 0.33 * rainStrength);
     float vol = dot(dir, lightVec);
     bool intersect = false;
     float bottom_fade = 1.0;
@@ -397,29 +389,32 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
             horizon_fade = linear_step(5000.0, 1000.0, distance(rayPos.xz, cameraPos.xz));
         }
         float step_optical_depth = density * stpLen;
-		float step_transmittance = exp(-step_optical_depth * extinction_coeff);
+        float step_transmittance = exp(-step_optical_depth * 0.4);
         vec2 rand = rand3to2(rayPos);
         float light_optical_depth = raymarch_light(rayPos, lightVec, rand.x, 6);
         float sky_optical_depth = raymarch_light(rayPos, vec3(0.0, 1.0, 0.0), rand.y, 2);
         
         vec2 total_radiance = vec2(0.0);
-        float extinction_multi = extinction_coeff;
-        float scattering_multi = scattering_coeff;
-        float powder_effect = 2.0 * pi * density / (2.0 * density + 0.15);
-        powder_effect = mix(powder_effect, 1.0, 0.8 * pow(vol * 0.5 + 0.5, 2.0));
-        float probability = single_scattering_phase(vol);
-        vec3 g = pow(vec3(0.6, 0.9, 0.3), vec3(1.0 + light_optical_depth));
-        for (int j = 0; j < 8; ++j) {
-            total_radiance.x += scattering_multi * exp(-light_optical_depth * extinction_multi * 0.33) * probability;
-            total_radiance.y += scattering_multi * exp(-sky_optical_depth * extinction_multi * 0.33) * 0.25 / pi;
-            float x = clamp(scattering_coeff / 0.1, 0.0, 1.0);
-            scattering_multi *= 0.55 * mix((x + x * 0.33) / (1.0 + x * 0.33), 1.0, vol * 0.5 + 0.5) * powder_effect;
-            extinction_multi *= 0.5;
-            g *= 0.5;
-            powder_effect = mix(powder_effect, sqrt(powder_effect), 0.5);
-            probability = multi_scattering_phase(vol, g);
-        }
-        total_radiance *= (1.0 - step_transmittance) / extinction_coeff;  // ?
+        vec4 probability;
+        probability.x = henyey_greenstein_phase(vol, 0.6) * 0.7
+                      + henyey_greenstein_phase(vol, -0.4) * 0.25
+                      + cornette_shanks_phase(vol, 0.9) * (0.1 + 0.15 * rainStrength);
+        probability.y = henyey_greenstein_phase(vol, 0.42) * 0.35
+                      + henyey_greenstein_phase(vol, -0.28) * 0.15
+                      + cornette_shanks_phase(vol, 0.6) * (0.1 + 0.15 * rainStrength) * 0.5;
+        probability.z = henyey_greenstein_phase(vol, 0.3) * 0.17
+                      + henyey_greenstein_phase(vol, -0.2) * 0.075
+                      + cornette_shanks_phase(vol, 0.4) * (0.1 + 0.15 * rainStrength) * 0.2;
+        probability.w = henyey_greenstein_phase(vol, 0.18) * 0.08
+                      + henyey_greenstein_phase(vol, -0.12) * 0.05
+                      + cornette_shanks_phase(vol, 0.2) * (0.1 + 0.15 * rainStrength) * 0.1;
+        total_radiance.x = 1.0 / (light_optical_depth * 0.24 + 1.0) * probability.x
+                         + 1.0 / (light_optical_depth * 0.108 + 1.0) * probability.y
+                         + 1.0 / (light_optical_depth * 0.048 + 1.0) * probability.z
+                         + 1.0 / (light_optical_depth * 0.024 + 1.0) * probability.w;
+        total_radiance.y = exp(-sky_optical_depth * 0.03)
+                         + exp(-sky_optical_depth * 0.003) * 0.1;
+        total_radiance *= 1.0 - step_transmittance;  // ?
         sunlight += total_radiance.x * transmittance;
         skylight += total_radiance.y * transmittance;
 
@@ -631,7 +626,7 @@ void main() {
     float sunIntensity = clamp(sunVec.y * 10.0, 0.0, 1.0);
     float moonIntensity = clamp(-sunVec.y * 10.0, 0.0, 1.0);
     vec3 lightColor = gamma_to_linear(sunAngle < 0.5 ? mix(SUN_COLOR, sunriseColor.rgb, sunriseColor.a) * sunIntensity : MOON_COLOR * moonIntensity);
-    vec3 cloudColor = scattering.x * lightColor + scattering.y * gamma_to_linear(mix(skyColor, sunriseColor.rgb, sunriseColor.a * 0.5));
+    vec3 cloudColor = scattering.x * lightColor + scattering.y * gamma_to_linear(mix((skyColor + 1.0) / 2.0, sunriseColor.rgb, sunriseColor.a * 0.5));
     fragColor.rgb = gamma_to_linear(fragColor.rgb);
     fragColor.rgb = cloudColor + fragColor.rgb * scattering.z;
     fragColor.rgb = linear_to_gamma(fragColor.rgb);
