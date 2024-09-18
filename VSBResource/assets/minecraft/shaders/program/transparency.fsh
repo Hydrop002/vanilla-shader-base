@@ -249,6 +249,19 @@ float worley3d(vec3 pos) {  // [0,1.732]
     return minDist;
 }
 
+float fresnel(float cosTheta, float n) {
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    if (n * sinTheta >= 1.0) return 1.0;
+    float cosThetaT = sqrt(1.0 - pow(n * sinTheta, 2.0));
+    float rs = pow((n * cosTheta - cosThetaT) / (n * cosTheta + cosThetaT), 2.0);
+    float rp = pow((n * cosThetaT - cosTheta) / (n * cosThetaT + cosTheta), 2.0);
+    return (rs + rp) / 2.0;
+}
+
+float fresnel_schlick(float cosTheta, float r0) {
+    return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0);
+}
+
 float get_water_height(vec3 pos, vec2 offset) {
     vec2 wind = vec2(gametime * 0.5);
     pos.xz -= pos.y * 0.2;
@@ -271,8 +284,9 @@ vec3 get_water_normal(vec3 pos) {
 }
 
 void rotate_water_normal(inout vec3 waterNormal, vec3 normal) {
-    vec4 q = normalize(vec4(normal.z, 0.0, -normal.x, normal.y + 1.0));
+    vec4 q = vec4(normal.z, 0.0, -normal.x, normal.y + 1.0);
     if (q.w < 0.001) q = vec4(0.0, 0.0, 1.0, 0.0);
+    else q = normalize(q);
     vec4 t = vec4(0.0);
     t.x = q.w * waterNormal.x + q.y * waterNormal.z - q.z * waterNormal.y;
     t.y = q.w * waterNormal.y + q.z * waterNormal.x - q.x * waterNormal.z;
@@ -563,7 +577,7 @@ void main() {
     execute if entity @s[nbt={effect:{id:"minecraft:night_vision"}}] store result storage ... run data get entity @s effect.duration
     data modify entity @s background set from storage ...
     */
-    float nightVision = 1.0;
+    float nightVision = 0.0;
     float daytime = dot(round(texelFetch(DiffuseSampler, extraUV5, 0).rgb * 255.0), vec3(65536.0, 256.0, 1.0)) / 24000.0;  // [0,1]d
     sunAngle = get_sun_angle(daytime);  // [0,1]
     sunVec = vec3(cos(sunAngle * 2.0 * pi), sin(sunAngle * 2.0 * pi), 0.0);  // eye->sun
@@ -586,8 +600,10 @@ void main() {
     float worldDist = length(worldPos);
     if (worldDist > f * 0.9) worldDist = 10000.0;
 
+    fragColor.rgb = gamma_to_linear(fragColor.rgb);
     if (isWater) {
         vec3 normal = normalize(cross(dFdx(worldPos), dFdy(worldPos)));
+        if (dFdx(worldPos) == vec3(0.0)) normal = -worldDir;
         vec3 waterNormal = get_water_normal(cameraPos + worldPos);
         rotate_water_normal(waterNormal, normal);
         vec3 screenPos = raytrace(worldPos, waterNormal);
@@ -596,10 +612,15 @@ void main() {
         float border = max(abs(screenPos.x - 0.5), abs(screenPos.y - 0.5));
         border = clamp(11.0 - border * 20.0, 0.0, 1.0);  // [0.5,0.55]->[1.0,0.0]
         if (screenPos.z > refDepth) border = 0.0;
-        refColor = mix(skyColor, refColor, border);
-        float fresnel = pow(clamp(1.0 + dot(worldDir, normal), 0.0, 1.0), 5.0);
-        fresnel = fresnel * 0.98 + 0.02;
-        fragColor.rgb = mix(texelAccum, refColor, fresnel);
+        float r;
+        if (inWater) {
+            refColor = gamma_to_linear(mix(fogColor, refColor, border));
+            r = fresnel(dot(-worldDir, waterNormal), 1.33);
+        } else {
+            refColor = gamma_to_linear(mix(skyColor, refColor, border));
+            r = fresnel(dot(-worldDir, waterNormal), 0.75);
+        }
+        fragColor.rgb += refColor * r;
     }
     vec3 scattering = vec3(0.0, 0.0, 1.0);
     if (cameraPos.y < CLOUD_HEIGHT) {
@@ -634,7 +655,6 @@ void main() {
     vec3 lightColor = gamma_to_linear(sunAngle < 0.5 ? mix(SUN_COLOR, sunriseColor.rgb, sunriseColor.a) * sunIntensity : MOON_COLOR * moonIntensity);
     vec3 ambientColor = gamma_to_linear(mix(mix(vec3(1.0), skyColor, moonIntensity * (1.0 - nightVision) * 0.5 + 0.5), sunriseColor.rgb, sunriseColor.a * 0.5));
     vec3 cloudColor = scattering.x * lightColor + scattering.y * ambientColor;
-    fragColor.rgb = gamma_to_linear(fragColor.rgb);
     fragColor.rgb = cloudColor + fragColor.rgb * scattering.z;
     fragColor.rgb = linear_to_gamma(fragColor.rgb);
 }
