@@ -16,3 +16,4 @@ execute store result entity @s Pos[2] double 1 run scoreboard players get @s pos
 # daytime
 execute store result storage vsb:uniform daytime int 1 run time query daytime
 data modify entity @s background set from storage vsb:uniform daytime
+execute if entity @s[nbt={background:0}] run data modify entity @s background set value 1

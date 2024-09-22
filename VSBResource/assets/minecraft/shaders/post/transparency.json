@@ -6,9 +6,33 @@
         "particles",
         "clouds",
         "weather",
-        "final"
+        "final",
+        "main",
+        "shadow",
+        "prevMain",
+        "prevShadow"
     ],
     "passes": [
+        {
+            "name": "shadow",
+            "intarget": "minecraft:main",
+            "outtarget": "shadow",
+            "auxtargets": [
+                {
+                    "name": "PrevShadowSampler",
+                    "id": "prevShadow"
+                },
+                {
+                    "name": "DiffuseDepthSampler",
+                    "id": "minecraft:main:depth"
+                }
+            ]
+        },
+        {
+            "name": "blit",
+            "intarget": "shadow",
+            "outtarget": "prevShadow"
+        },
         {
             "name": "transparency",
             "intarget": "minecraft:main",
@@ -43,12 +67,12 @@
                     "id": "particles:depth"
                 },
                 {
-                    "name": "CloudsSampler",
-                    "id": "clouds"
+                    "name": "ShadowSampler",
+                    "id": "shadow"
                 },
                 {
-                    "name": "CloudsDepthSampler",
-                    "id": "clouds:depth"
+                    "name": "PrevMainSampler",
+                    "id": "prevMain"
                 },
                 {
                     "name": "WeatherSampler",
@@ -59,6 +83,11 @@
                     "id": "weather:depth"
                 }
             ]
+        },
+        {
+            "name": "blit",
+            "intarget": "final",
+            "outtarget": "prevMain"
         },
         {
             "name": "blit",

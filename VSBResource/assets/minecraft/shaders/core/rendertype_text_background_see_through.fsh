@@ -71,8 +71,10 @@ void main() {
     vec2 rotYUV2 = vec2(baseUV.x + 2.0, baseUV.y + 1.0);
     vec2 rotYUV3 = vec2(baseUV.x + 2.0, baseUV.y + 2.0);
     vec2 rotYUV4 = vec2(baseUV.x + 2.0, baseUV.y + 3.0);
-    vec2 fovYUV1 = vec2(baseUV.x + 3.0, baseUV.y);
-    vec2 fovYUV2 = vec2(baseUV.x + 3.0, baseUV.y + 1.0);
+    vec2 projUV1 = vec2(baseUV.x + 3.0, baseUV.y);
+    vec2 projUV2 = vec2(baseUV.x + 3.0, baseUV.y + 1.0);
+    vec2 projUV3 = vec2(baseUV.x + 3.0, baseUV.y + 2.0);
+    vec2 projUV4 = vec2(baseUV.x + 3.0, baseUV.y + 3.0);
     vec2 extraUV1 = vec2(baseUV.x + 4.0, baseUV.y);
     vec2 extraUV2 = vec2(baseUV.x + 4.0, baseUV.y + 1.0);
     vec2 extraUV3 = vec2(baseUV.x + 4.0, baseUV.y + 2.0);
@@ -147,20 +149,30 @@ void main() {
         } else if (marker) {
             discard;
         }
-    } else if (uv.x == fovYUV1.x) {
+    } else if (uv.x == projUV1.x) {
         float cot = ProjMat[1][1];
+        float bobX = ProjMat[3][0];
+        float bobY = ProjMat[3][1];
         uint ux = floatBitsToUint(cot);
-        if (uv.y == fovYUV1.y) {
-            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, 0, 0), 1.0);
+        uint uy = floatBitsToUint(bobX);
+        uint uz = floatBitsToUint(bobY);
+        if (uv.y == projUV1.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor0(ux, uy, uz), 1.0);
             else discard;
-        } else if (uv.y == fovYUV2.y) {
-            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, 0, 0), 1.0);
+        } else if (uv.y == projUV2.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor1(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == projUV3.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor2(ux, uy, uz), 1.0);
+            else discard;
+        } else if (uv.y == projUV4.y) {
+            if (marker0 > 0.5) fragColor = vec4(writeToColor3(ux, uy, uz), 1.0);
             else discard;
         } else if (marker) {
             discard;
         }
     } else if (uv.x == extraUV1.x) {
-        uint ux = floatBitsToUint(GameTime * 1200.0);
+        uint ux = floatBitsToUint(GameTime);
         uint uy = floatBitsToUint(FogStart);
         uint uz = floatBitsToUint(FogEnd);
         if (uv.y == extraUV1.y) {

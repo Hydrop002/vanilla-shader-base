@@ -10,8 +10,8 @@ uniform sampler2D ParticlesSampler;
 uniform sampler2D ParticlesDepthSampler;
 uniform sampler2D WeatherSampler;
 uniform sampler2D WeatherDepthSampler;
-uniform sampler2D CloudsSampler;
-uniform sampler2D CloudsDepthSampler;
+uniform sampler2D ShadowSampler;
+uniform sampler2D PrevMainSampler;
 
 uniform mat4 ProjMat;
 uniform vec2 OutSize;
@@ -19,7 +19,7 @@ uniform float Time;
 
 in vec2 texCoord;
 
-#define NUM_LAYERS 6
+#define NUM_LAYERS 5
 
 vec4 color_layers[NUM_LAYERS];
 float depth_layers[NUM_LAYERS];
@@ -50,11 +50,17 @@ const float n = 0.05;
 const float f = renderDistance * 64.0;
 const float minHeight = -64.0;
 const vec3 plainsSkyColor = vec3(0.4706, 0.6549, 1.0);
+const float shadowWidth = 100.0;
+const float shadowHeight = 56.25;
+const float shadowNear = 0.0;
+const float shadowFar = 200.0;
 
 mat4 proj;
 mat4 projInv;
 mat3 view;
 mat3 viewInv;
+mat4 shadowView;
+mat4 shadowProj;
 float sunAngle;
 vec3 sunVec;
 vec3 lightVec;
@@ -100,7 +106,7 @@ float get_depth_accum(vec2 uv) {
     try_insert( texture( ItemEntitySampler, uv ), texture( ItemEntityDepthSampler, uv ).r );
     try_insert( texture( ParticlesSampler, uv ), texture( ParticlesDepthSampler, uv ).r );
     try_insert( texture( WeatherSampler, uv ), texture( WeatherDepthSampler, uv ).r );
-    try_insert( texture( CloudsSampler, uv ), texture( CloudsDepthSampler, uv ).r );
+    // try_insert( texture( CloudsSampler, uv ), texture( CloudsDepthSampler, uv ).r );
     
     return depth_layers[active_layers - 1];
 }
@@ -129,6 +135,17 @@ vec3 view2screen(vec3 pos) {
     vec4 pos_ndc = proj * vec4(pos, 1.0);
     pos_ndc /= pos_ndc.w;
     return (pos_ndc.xyz + 1.0) / 2.0;
+}
+
+float shadowDepth2dist(float depth) {
+    float depth_ndc = depth * 2.0 - 1.0;
+    return (depth_ndc * (shadowFar - shadowNear) + shadowFar + shadowNear) / 2.0;
+}
+
+vec3 world2shadow(vec3 pos) {
+    vec4 shadow_ndc = shadowProj * shadowView * vec4(pos, 1.0);
+    shadow_ndc.xy /= mix(1.0, length(shadow_ndc.xy), 0.85);
+    return (shadow_ndc.xyz + 1.0) / 2.0;
 }
 
 float linear_step(float a, float b, float x) {
@@ -171,6 +188,12 @@ vec2 rand2to2(vec2 pos) {  // [0,1]
     vec3 rand = fract(vec3(pos.xyx) * vec3(0.1031, 0.1030, 0.0973));
     rand += dot(rand, rand.yzx + 33.33);
     return fract((rand.xx + rand.yz) * rand.zy);
+}
+
+vec3 rand2to3(vec2 pos) {  // [0,1]
+	vec3 rand = fract(vec3(pos.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    rand += dot(rand, rand.yxz + 33.33);
+    return fract((rand.xxy + rand.yzz) * rand.zyx);
 }
 
 vec2 rand3to2(vec3 pos) {  // [0,1]
@@ -444,6 +467,14 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
     return vec3(sunlight, skylight, transmittance);
 }
 
+vec3 get_barycentric(vec2 p1, vec2 p2, vec2 p3, vec2 p) {
+    float s = length(cross(vec3(p2 - p1, 0.0), vec3(p3 - p1, 0.0))) / 2.0;
+    float s1 = length(cross(vec3(p2 - p, 0.0), vec3(p3 - p, 0.0))) / 2.0;
+    float s2 = length(cross(vec3(p1 - p, 0.0), vec3(p3 - p, 0.0))) / 2.0;
+    float s3 = length(cross(vec3(p1 - p, 0.0), vec3(p2 - p, 0.0))) / 2.0;
+    return vec3(s1, s2, s3) / s;
+}
+
 uint readFromColor0(uvec3 u1, uvec3 u2, uvec3 u3, uvec3 u4) {
     uint ux;
     ux = bitfieldInsert(ux, u1.r, 0, 8);
@@ -494,8 +525,10 @@ void main() {
     ivec2 rotYUV2 = ivec2(baseUV.x + 2, baseUV.y + 1);
     ivec2 rotYUV3 = ivec2(baseUV.x + 2, baseUV.y + 2);
     ivec2 rotYUV4 = ivec2(baseUV.x + 2, baseUV.y + 3);
-    ivec2 fovYUV1 = ivec2(baseUV.x + 3, baseUV.y);
-    ivec2 fovYUV2 = ivec2(baseUV.x + 3, baseUV.y + 1);
+    ivec2 projUV1 = ivec2(baseUV.x + 3, baseUV.y);
+    ivec2 projUV2 = ivec2(baseUV.x + 3, baseUV.y + 1);
+    ivec2 projUV3 = ivec2(baseUV.x + 3, baseUV.y + 2);
+    ivec2 projUV4 = ivec2(baseUV.x + 3, baseUV.y + 3);
     ivec2 extraUV1 = ivec2(baseUV.x + 4, baseUV.y);
     ivec2 extraUV2 = ivec2(baseUV.x + 4, baseUV.y + 1);
     ivec2 extraUV3 = ivec2(baseUV.x + 4, baseUV.y + 2);
@@ -541,14 +574,24 @@ void main() {
     viewY.y = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
     viewY.z = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     vec3 viewX = cross(viewY, viewZ);
-    u1 = uvec3(texelFetch(DiffuseSampler, fovYUV1, 0).rgb * 255.0);
-    u2 = uvec3(texelFetch(DiffuseSampler, fovYUV2, 0).rgb * 255.0);
+    u1 = uvec3(texelFetch(DiffuseSampler, projUV1, 0).rgb * 255.0);
+    u2 = uvec3(texelFetch(DiffuseSampler, projUV2, 0).rgb * 255.0);
+    u3 = uvec3(texelFetch(DiffuseSampler, projUV3, 0).rgb * 255.0);
+    u4 = uvec3(texelFetch(DiffuseSampler, projUV4, 0).rgb * 255.0);
     float cot = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));
+    float bobX = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
+    float bobY = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     u1 = uvec3(texelFetch(DiffuseSampler, extraUV1, 0).rgb * 255.0);
     u2 = uvec3(texelFetch(DiffuseSampler, extraUV2, 0).rgb * 255.0);
     u3 = uvec3(texelFetch(DiffuseSampler, extraUV3, 0).rgb * 255.0);
     u4 = uvec3(texelFetch(DiffuseSampler, extraUV4, 0).rgb * 255.0);
-    gametime = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));  // [0,1200]s
+    gametime = uintBitsToFloat(readFromColor0(u1, u2, u3, u4));  // [0,1]d
+    if (mod(gametime * 300000.0, 2.0) < 1.0) {
+        gametime *= 1200.0;
+    } else {
+        fragColor = texture(PrevMainSampler, texCoord);
+        return;
+    }
     float fogStart = uintBitsToFloat(readFromColor1(u1, u2, u3, u4));
     float fogEnd = uintBitsToFloat(readFromColor2(u1, u2, u3, u4));
     bool inWater = false;
@@ -589,7 +632,7 @@ void main() {
     proj = mat4(cot / aspect, 0.0, 0.0, 0.0,
                 0.0, cot, 0.0, 0.0,
                 0.0, 0.0, -(f + n) / (f - n), -1.0,
-                0.0, 0.0, -2.0 * f * n / (f - n), 0.0);
+                bobX, bobY, -2.0 * f * n / (f - n), 0.0);
     projInv = inverse(proj);
 
     viewInv = mat3(viewX, viewY, viewZ);
@@ -600,10 +643,69 @@ void main() {
     float worldDist = length(worldPos);
     if (worldDist > f * 0.9) worldDist = 10000.0;
 
+    vec3 lightRightVec = vec3(0.0, 0.0, -1.0);
+    vec3 lightUpVec = cross(lightVec, lightRightVec);
+    shadowView = mat4(
+        lightRightVec.x, lightUpVec.x, lightVec.x, 0.0,
+        lightRightVec.y, lightUpVec.y, lightVec.y, 0.0,
+        lightRightVec.z, lightUpVec.z, lightVec.z, 0.0,
+        0.0, 0.0, -100.0, 1.0
+    );
+    shadowProj = mat4(
+        2.0 / shadowWidth, 0.0, 0.0, 0.0,
+        0.0, 2.0 / shadowHeight, 0.0, 0.0,
+        0.0, 0.0, -2.0 / (shadowFar - shadowNear), 0.0,
+        0.0, 0.0, -(shadowFar + shadowNear) / (shadowFar - shadowNear), 1.0
+    );
+
+    vec3 dx = dFdx(worldPos), dy = dFdy(worldPos);
+    vec3 normal = normalize(cross(dx, dy));
+    if (dx == vec3(0.0)) normal = -worldDir;
+    float nol = dot(normal, lightVec);
     fragColor.rgb = gamma_to_linear(fragColor.rgb);
+    if (worldDist < f) {
+        vec3 shadowPos = world2shadow(worldPos);
+        vec2 texelSize = 1.0 / OutSize;
+        float shadowDepth = 0.0;
+        float shadow = 0.0;  // brightness
+        vec2 t = fract(shadowPos.xy * OutSize);
+        if (t.x < 0.5) {
+            if (t.y < 0.5) {
+                vec3 w = get_barycentric(vec2(0.0), vec2(-1.0, 0.0), vec2(0.0, -1.0), t - 0.5);
+                float d1 = dot(texture(ShadowSampler, shadowPos.xy).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d2 = dot(texture(ShadowSampler, shadowPos.xy + vec2(-texelSize.x, 0.0)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d3 = dot(texture(ShadowSampler, shadowPos.xy + vec2(0.0, -texelSize.y)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                shadowDepth += dot(vec3(d1, d2, d3), w);
+            } else {
+                vec3 w = get_barycentric(vec2(0.0), vec2(-1.0, 0.0), vec2(0.0, 1.0), t - 0.5);
+                float d1 = dot(texture(ShadowSampler, shadowPos.xy).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d2 = dot(texture(ShadowSampler, shadowPos.xy + vec2(-texelSize.x, 0.0)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d3 = dot(texture(ShadowSampler, shadowPos.xy + vec2(0.0, texelSize.y)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                shadowDepth += dot(vec3(d1, d2, d3), w);
+            }
+        } else {
+            if (t.y < 0.5) {
+                vec3 w = get_barycentric(vec2(0.0), vec2(1.0, 0.0), vec2(0.0, -1.0), t - 0.5);
+                float d1 = dot(texture(ShadowSampler, shadowPos.xy).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d2 = dot(texture(ShadowSampler, shadowPos.xy + vec2(texelSize.x, 0.0)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d3 = dot(texture(ShadowSampler, shadowPos.xy + vec2(0.0, -texelSize.y)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                shadowDepth += dot(vec3(d1, d2, d3), w);
+            } else {
+                vec3 w = get_barycentric(vec2(0.0), vec2(1.0, 0.0), vec2(0.0, 1.0), t - 0.5);
+                float d1 = dot(texture(ShadowSampler, shadowPos.xy).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d2 = dot(texture(ShadowSampler, shadowPos.xy + vec2(texelSize.x, 0.0)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                float d3 = dot(texture(ShadowSampler, shadowPos.xy + vec2(0.0, texelSize.y)).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+                shadowDepth += dot(vec3(d1, d2, d3), w);
+            }
+        }
+        float dist = shadowDepth2dist(shadowPos.z - shadowDepth);
+        if (dist < 0.4) shadow += 1.0;
+        shadow = mix(shadow, 1.0, linear_step(32.0, 48.0, worldDist));
+        shadow *= clamp(nol, 0.0, 1.0);
+        shadow *= clamp(sunVec.y * 5.0, 0.0, 1.0);
+        fragColor.rgb *= mix(0.25, 2.0, shadow);
+    }
     if (isWater) {
-        vec3 normal = normalize(cross(dFdx(worldPos), dFdy(worldPos)));
-        if (dFdx(worldPos) == vec3(0.0)) normal = -worldDir;
         vec3 waterNormal = get_water_normal(cameraPos + worldPos);
         rotate_water_normal(waterNormal, normal);
         vec3 screenPos = raytrace(worldPos, waterNormal);
