@@ -178,31 +178,31 @@ vec4 get_sunrise_color(float sunHeight) {
     return color;
 }
 
-float rand2to1(vec2 pos) {  // [0,1]
+float hash21(vec2 pos) {  // [0,1]
     vec3 rand = fract(pos.xyx * 0.1031);
     rand += dot(rand, rand.yzx + 33.33);
     return fract((rand.x + rand.y) * rand.z);
 }
 
-vec2 rand2to2(vec2 pos) {  // [0,1]
-    vec3 rand = fract(vec3(pos.xyx) * vec3(0.1031, 0.1030, 0.0973));
+vec2 hash22(vec2 pos) {  // [0,1]
+    vec3 rand = fract(pos.xyx * vec3(0.1031, 0.1030, 0.0973));
     rand += dot(rand, rand.yzx + 33.33);
     return fract((rand.xx + rand.yz) * rand.zy);
 }
 
-vec3 rand2to3(vec2 pos) {  // [0,1]
-	vec3 rand = fract(vec3(pos.xyx) * vec3(0.1031, 0.1030, 0.0973));
+vec3 hash23(vec2 pos) {  // [0,1]
+	vec3 rand = fract(pos.xyx * vec3(0.1031, 0.1030, 0.0973));
     rand += dot(rand, rand.yxz + 33.33);
     return fract((rand.xxy + rand.yzz) * rand.zyx);
 }
 
-vec2 rand3to2(vec3 pos) {  // [0,1]
+vec2 hash32(vec3 pos) {  // [0,1]
     pos = fract(pos * vec3(0.1031, 0.1030, 0.0973));
     pos += dot(pos, pos.yzx + 33.33);
     return fract((pos.xx + pos.yz) * pos.zy);
 }
 
-vec3 rand3to3(vec3 pos) {  // [0,1]
+vec3 hash33(vec3 pos) {  // [0,1]
     pos = fract(pos * vec3(0.1031, 0.1030, 0.0973));
     pos += dot(pos, pos.yxz + 33.33);
     return fract((pos.xxy + pos.yxx) * pos.zyx);
@@ -211,10 +211,10 @@ vec3 rand3to3(vec3 pos) {  // [0,1]
 float perlin2d(vec2 pos) {  // [-1,1]
     vec2 node = floor(pos);
     vec2 t = fract(pos);
-    float n00 = dot(t, rand2to2(node) * 2.0 - 1.0);
-    float n01 = dot(vec2(t.x, t.y - 1.0), rand2to2(node + vec2(0.0, 1.0)) * 2.0 - 1.0);
-    float n10 = dot(vec2(t.x - 1.0, t.y), rand2to2(node + vec2(1.0, 0.0)) * 2.0 - 1.0);
-    float n11 = dot(t - 1.0, rand2to2(node + vec2(1.0, 1.0)) * 2.0 - 1.0);
+    float n00 = dot(t, hash22(node) * 2.0 - 1.0);
+    float n01 = dot(vec2(t.x, t.y - 1.0), hash22(node + vec2(0.0, 1.0)) * 2.0 - 1.0);
+    float n10 = dot(vec2(t.x - 1.0, t.y), hash22(node + vec2(1.0, 0.0)) * 2.0 - 1.0);
+    float n11 = dot(t - 1.0, hash22(node + vec2(1.0, 1.0)) * 2.0 - 1.0);
     t = t * t * (3.0 - 2.0 * t);
     float n0 = mix(n00, n01, t.y);
     float n1 = mix(n10, n11, t.y);
@@ -224,14 +224,14 @@ float perlin2d(vec2 pos) {  // [-1,1]
 float perlin3d(vec3 pos) {  // [-1,1]
     vec3 node = floor(pos);
     vec3 t = fract(pos);
-    float n000 = dot(t, rand3to3(node) * 2.0 - 1.0);
-    float n001 = dot(vec3(t.x, t.y, t.z - 1.0), rand3to3(node + vec3(0.0, 0.0, 1.0)) * 2.0 - 1.0);
-    float n010 = dot(vec3(t.x, t.y - 1.0, t.z), rand3to3(node + vec3(0.0, 1.0, 0.0)) * 2.0 - 1.0);
-    float n011 = dot(vec3(t.x, t.y - 1.0, t.z - 1.0), rand3to3(node + vec3(0.0, 1.0, 1.0)) * 2.0 - 1.0);
-    float n100 = dot(vec3(t.x - 1.0, t.y, t.z), rand3to3(node + vec3(1.0, 0.0, 0.0)) * 2.0 - 1.0);
-    float n101 = dot(vec3(t.x - 1.0, t.y, t.z - 1.0), rand3to3(node + vec3(1.0, 0.0, 1.0)) * 2.0 - 1.0);
-    float n110 = dot(vec3(t.x - 1.0, t.y - 1.0, t.z), rand3to3(node + vec3(1.0, 1.0, 0.0)) * 2.0 - 1.0);
-    float n111 = dot(t - 1.0, rand3to3(node + 1.0) * 2.0 - 1.0);
+    float n000 = dot(t, hash33(node) * 2.0 - 1.0);
+    float n001 = dot(vec3(t.x, t.y, t.z - 1.0), hash33(node + vec3(0.0, 0.0, 1.0)) * 2.0 - 1.0);
+    float n010 = dot(vec3(t.x, t.y - 1.0, t.z), hash33(node + vec3(0.0, 1.0, 0.0)) * 2.0 - 1.0);
+    float n011 = dot(vec3(t.x, t.y - 1.0, t.z - 1.0), hash33(node + vec3(0.0, 1.0, 1.0)) * 2.0 - 1.0);
+    float n100 = dot(vec3(t.x - 1.0, t.y, t.z), hash33(node + vec3(1.0, 0.0, 0.0)) * 2.0 - 1.0);
+    float n101 = dot(vec3(t.x - 1.0, t.y, t.z - 1.0), hash33(node + vec3(1.0, 0.0, 1.0)) * 2.0 - 1.0);
+    float n110 = dot(vec3(t.x - 1.0, t.y - 1.0, t.z), hash33(node + vec3(1.0, 1.0, 0.0)) * 2.0 - 1.0);
+    float n111 = dot(t - 1.0, hash33(node + 1.0) * 2.0 - 1.0);
     t = t * t * (3.0 - 2.0 * t);
     float n00 = mix(n000, n001, t.z);
     float n01 = mix(n010, n011, t.z);
@@ -248,7 +248,7 @@ float worley2d(vec2 pos) {  // [0,1.414]
     for (int i = -1; i <= 1; ++i) {
         for (int j = -1; j <= 1; ++j) {
             vec2 node = base + vec2(i, j);
-            vec2 p = node + rand2to2(node);
+            vec2 p = node + hash22(node);
             float dist = distance(pos, p);
             minDist = min(minDist, dist);
         }
@@ -263,13 +263,77 @@ float worley3d(vec3 pos) {  // [0,1.732]
         for (int j = -1; j <= 1; ++j) {
             for(int k = -1; k <= 1; ++k) {
                 vec3 node = base + vec3(i, j, k);
-                vec3 p = node + rand3to3(node);
+                vec3 p = node + hash33(node);
                 float dist = distance(pos, p);
                 minDist = min(minDist, dist);
             }
         }
     }
     return minDist;
+}
+
+float simplex2d(vec2 pos) {  // [-1,1]
+    float k = 0.2113;  // (3.0 - sqrt(3.0)) / 6.0
+    float k_inv = 0.366;  // (sqrt(3.0) - 1.0) / 2.0
+    vec2 node_sq = floor(pos + (pos.x + pos.y) * k_inv);
+    vec2 node_tri = node_sq - (node_sq.x + node_sq.y) * k;
+    vec2 d1 = pos - node_tri;
+    float f = step(d1.x, d1.y);
+    vec2 m = vec2(1.0 - f, f);
+    vec2 d2 = d1 - m + k;
+    vec2 d3 = d1 - 1.0 + 2.0 * k;
+    float w1 = max(0.5 - dot(d1, d1), 0.0);
+    float w2 = max(0.5 - dot(d2, d2), 0.0);
+    float w3 = max(0.5 - dot(d3, d3), 0.0);
+    float n1 = pow(w1, 4.0) * dot(d1, hash22(node_sq) * 2.0 - 1.0);
+    float n2 = pow(w2, 4.0) * dot(d2, hash22(node_sq + m) * 2.0 - 1.0);
+    float n3 = pow(w3, 4.0) * dot(d3, hash22(node_sq + vec2(1.0)) * 2.0 - 1.0);
+    return (n1 + n2 + n3) * 70.0;
+}
+
+float simplex3d(vec3 pos) {  // [-1,1]
+    float k = 0.1667;  // 1.0 / 6.0
+    float k_inv = 0.3333;  // 1.0 / 3.0
+    vec3 node_cube = floor(pos + (pos.x + pos.y + pos.z) * k_inv);
+    vec3 node_tetra = node_cube - (node_cube.x + node_cube.y + node_cube.z) * k;
+    vec3 d1 = pos - node_tetra;
+    vec3 f = step(d1.yzx, d1);
+	vec3 m1 = f * (1.0 - f.zxy);
+	vec3 m2 = 1.0 - f.zxy * (1.0 - f);
+    vec3 d2 = d1 - m1 + k;
+	vec3 d3 = d1 - m2 + 2.0 * k;
+	vec3 d4 = d1 - 1.0 + 3.0 * k;
+    float w1 = max(0.6 - dot(d1, d1), 0.0);
+    float w2 = max(0.6 - dot(d2, d2), 0.0);
+    float w3 = max(0.6 - dot(d3, d3), 0.0);
+    float w4 = max(0.6 - dot(d4, d4), 0.0);
+    float n1 = pow(w1, 4.0) * dot(d1, hash33(node_cube) * 2.0 - 1.0);
+    float n2 = pow(w2, 4.0) * dot(d2, hash33(node_cube + m1) * 2.0 - 1.0);
+    float n3 = pow(w3, 4.0) * dot(d3, hash33(node_cube + m2) * 2.0 - 1.0);
+    float n4 = pow(w4, 4.0) * dot(d4, hash33(node_cube + vec3(1.0)) * 2.0 - 1.0);
+    return (n1 + n2 + n3 + n4) * 26.0;
+}
+
+vec2 curl2d(vec2 pos) {
+    float bias = 0.1;
+    float n = perlin2d(pos);
+    float nx = perlin2d(pos + vec2(bias, 0.0));
+    float ny = perlin2d(pos + vec2(0.0, bias));
+    float dx = (nx - n) / bias;
+    float dy = (ny - n) / bias;
+    return vec2(dy, -dx);
+}
+
+vec3 curl3d(vec3 pos) {
+    float bias = 0.1;
+    float n = perlin3d(pos);
+    float nx = perlin3d(pos + vec3(bias, 0.0, 0.0));
+    float ny = perlin3d(pos + vec3(0.0, bias, 0.0));
+    float nz = perlin3d(pos + vec3(0.0, 0.0, bias));
+    float dx = (nx - n) / bias;
+    float dy = (ny - n) / bias;
+    float dz = (nz - n) / bias;
+    return vec3(dy - dz, dz - dx, dx - dy);
 }
 
 float fresnel(float cosTheta, float n) {
@@ -416,7 +480,7 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
     float horizon_fade = 1.0;
     for (int i = 0; i < count; ++i) {
         if (transmittance < 0.075) break;
-        vec3 rayPos = start + stp * (float(i) + rand2to1(gl_FragCoord.xy));
+        vec3 rayPos = start + stp * (float(i) + hash21(gl_FragCoord.xy));
         float altitude_fraction = (rayPos.y - CLOUD_HEIGHT) / CLOUD_THICKNESS;
         float density = get_cloud_density(rayPos);
         if (density < 1e-6) continue;
@@ -427,7 +491,7 @@ vec3 raymarch(vec3 start, vec3 dir, float len) {
         }
         float step_optical_depth = density * stpLen;
         float step_transmittance = exp(-step_optical_depth * 0.4);
-        vec2 rand = rand3to2(rayPos);
+        vec2 rand = hash32(rayPos);
         float light_optical_depth = raymarch_light(rayPos, lightVec, rand.x, 6);
         float sky_optical_depth = raymarch_light(rayPos, vec3(0.0, 1.0, 0.0), rand.y, 2);
         
